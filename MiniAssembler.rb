@@ -29,6 +29,10 @@ class MiniAssembler
 
 
 	def initialize(args = nil)
+		reset()
+	end
+
+	def reset
 		@pc = 0
 		@org = 0
 		@m = 0
@@ -39,8 +43,8 @@ class MiniAssembler
 		@exports = {}
 		@patches = []
 		@poke = false
-
 	end
+
 
 	def process(line)
 		line.chomp!
@@ -62,7 +66,7 @@ class MiniAssembler
 
 		when ORG
 			raise "org too late" if @pc > 0
-			@org = self.class.expect_number(operand)
+			@org = @pc = self.class.expect_number(operand)
 
 		when MACHINE
 			@machine = self.class.expect_machine(operand)
@@ -520,41 +524,33 @@ class MiniAssembler
 
 	end
 
-	def finish()
+	def finish(code, st)
 
 		# resolve symbols, etc.
-
-		tmp = []
 
 		pc = @org
 		while !@data.empty?
 
 
-			if @poke 
-				print "\t& POKE #{pc},"
-			else
-				print "\tDATA " 
-			end
+			prefix = @poke ? "& POKE #{pc}," : "DATA "
 
 			tmp = @data.take 20
-			puts tmp.join(',')
+
+			code.push prefix + tmp.join(',')
 
 			pc += tmp.length
 
 			@data = @data.drop 20
 
-
 		end
 
-		@pc = 0
-		@org = 0
-		@m = 0
-		@x = 0
-		@poke = false
-		@machine = M6502
-		@data = []
-		@symbols = {}
+		@exports.each {|key, _value|
 
+			st[key] = @symbols[key] if @symbols.has_key? key
+		}
+
+		reset
+		true
 	end
 
 

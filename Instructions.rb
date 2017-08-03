@@ -348,9 +348,9 @@ INSTRUCTIONS = {
 		end
 
 
-		modes.each {|mode|
+		modes.each {|xmode|
 
-			instr = instrs.select {|x| x[1] == mode }
+			instr = instrs.select {|x| x[1] == xmode }
 			return rehydrate(mnemonic, instr.first) unless instr.empty?
 		}
 

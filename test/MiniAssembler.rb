@@ -98,4 +98,23 @@ class TestAssembler < Test::Unit::TestCase
 		m.process(" lda #0")
 	end
 
+	def test_assemble
+		m = MiniAssembler::new
+		m.process(" .org 300")
+		m.process(" .machine 65816")
+		m.process(" .long m")
+		m.process(" .export start")
+		m.process("start")
+		m.process(" lda #0")
+		m.process(" rts")
+
+
+		data = []
+		st = {}
+		m.finish(data, st)
+
+		assert_equal(st, {:start => 300 })
+		assert_equal(data, ["DATA 169,0,0,96"])
+	end
+
 end
