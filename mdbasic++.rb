@@ -16,14 +16,11 @@ m = nil
 
 options = { :verbose => false, :I => [], :o => nil }
 
-OptionParser.new do |opts|
+op = OptionParser.new do |opts|
 	opts.banner = "Usage: mdbasic++ [options] file"
+	opts.version = '0.0.0'
+	opts.release = nil
 
-	opts.on("-v", "--verbose", "Be verbose") do
-		options[:verbose] = true
-		header.push "#pragma summary 1"
-		header.push "#pragma xref 1,1"
-	end
 
 	opts.on("-D macroname[=value]", "Define a macro") do |x|
 		k, v = x.split('=',2)
@@ -38,6 +35,10 @@ OptionParser.new do |opts|
 		options[:I].push x
 	end
 
+	opts.on("-o outfile", "Specify outfile") do |x|
+		options[:o] = x
+	end
+
 	opts.on("-O level", OptionParser::DecimalInteger, "Specify optimization level") do |x|
 		if x < 0 || x > 2
 			warn "Invalid optimization level #{x}"
@@ -45,6 +46,18 @@ OptionParser.new do |opts|
 			header.push "#pragma optimize #{x},2"
 		end
 	end
+
+	opts.on("-v", "--verbose", "Be verbose") do
+		options[:verbose] = true
+		header.push "#pragma summary 1"
+		header.push "#pragma xref 1,1"
+	end
+
+	opts.on('-V', "--version", "Display version") do
+		puts opts.ver
+		exit 0
+	end
+
 
 	opts.on("--[no-]declare", "Require declarations") do |x|
 		header.push "#pragma declare #{x ? 1 : 0}"
@@ -58,20 +71,31 @@ OptionParser.new do |opts|
 		header.push "#pragma xref #{x ? 1 : 0},#{x ? 1 : 0}"
 	end
 
-	opts.on("-o outfile", "Specify outfile") do |x|
-		options[:o] = x
+
+
+
+	opts.on_tail("-h", "--help", "Display help information") do
+		puts opts
+		exit 0
 	end
 
 
-end.parse!
+end
 
+begin
+	op.parse!
+rescue OptionParser::ParseError => e
+	puts e
+	puts op
+	exit 1
+end
 
 
 ARGF.each_line {|line|
 	line.chomp!
 
 	if m
-		if line =~ /^#\s*end\s*$/
+		if line =~ /^#\s*endasm\s*$/
 			data = []
 			st = {}
 			m.finish(data, st)
