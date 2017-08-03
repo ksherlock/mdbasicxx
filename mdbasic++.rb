@@ -1,11 +1,71 @@
+require 'optparse'
+require 'time'
 
 require_relative 'MiniAssembler'
 
+now = Time.now
 errors = 0
 
 body = []
-header = []
+header = [
+	"#define __MDBASICXX__",
+	'#define __DATE__ "' + now.strftime("%b %e %Y") + '"',
+	'#define __TIME__ "' + now.strftime("%H:%M:%S") + '"',
+]
 m = nil
+
+options = { :verbose => false, :I => [], :o => nil }
+
+OptionParser.new do |opts|
+	opts.banner = "Usage: mdbasic++ [options] file"
+
+	opts.on("-v", "--verbose", "Be verbose") do
+		options[:verbose] = true
+		header.push "#pragma summary 1"
+		header.push "#pragma xref 1,1"
+	end
+
+	opts.on("-D macroname[=value]", "Define a macro") do |x|
+		k, v = x.split('=',2)
+		if v
+			header.push "#define #{k} #{v}"
+		else
+			header.push "#define #{k}"
+		end
+	end
+
+	opts.on("-I directory", "Specify include path") do |x|
+		options[:I].push x
+	end
+
+	opts.on("-O level", OptionParser::DecimalInteger, "Specify optimization level") do |x|
+		if x < 0 || x > 2
+			warn "Invalid optimization level #{x}"
+		else
+			header.push "#pragma optimize #{x},2"
+		end
+	end
+
+	opts.on("--[no-]declare", "Require declarations") do |x|
+		header.push "#pragma declare #{x ? 1 : 0}"
+	end
+
+	opts.on("--[no-]summary", "Print summary") do |x|
+		header.push "#pragma summary #{x ? 1 : 0}"
+	end
+
+	opts.on("--[no-]xref", "Print Cross References") do |x|
+		header.push "#pragma xref #{x ? 1 : 0},#{x ? 1 : 0}"
+	end
+
+	opts.on("-o outfile", "Specify outfile") do |x|
+		options[:o] = x
+	end
+
+
+end.parse!
+
+
 
 ARGF.each_line {|line|
 	line.chomp!
