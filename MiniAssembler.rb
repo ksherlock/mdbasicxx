@@ -3,6 +3,9 @@ require_relative 'Instructions'
 
 class MiniAssembler
 
+	# applesoft has a limit of 236 chars / line. 236/4 = 59.
+	CHUNK_SIZE = 50
+
 	M6502 = 0
 	M65C02 = 1
 	M65816 = 2
@@ -65,7 +68,7 @@ class MiniAssembler
 			@symbols[label] = value				
 
 		when ORG
-			raise "org too late" if @pc > 0
+			raise "org already set" if @pc != @org
 			@org = @pc = self.class.expect_number(operand)
 
 		when MACHINE
@@ -139,6 +142,8 @@ class MiniAssembler
 
 		value = operand[:value]
 		mode = operand[:mode]
+
+		# todo -- if mode == :block, value is array of 2 elements.
 
 		if Symbol === value
 			if @symbols.has_key? value
@@ -528,19 +533,40 @@ class MiniAssembler
 
 		# resolve symbols, etc.
 
+		@patches.each {|p|
+			pc = p[:pc]
+			size = p[:size]
+			value = p[:value]
+			mode = p[:mode]
+
+			xvalue = @symbols[value] or raise "Undefined symbol #{value}"
+
+
+			offset = pc - @org
+			if mode == :relative
+
+			else
+				size.times {
+					@data[offset] = xvalue & 0xff
+					xvalue = xvalue >> 8
+					offset = offset + 1
+				}
+			end
+		}
+
 		pc = @org
 		while !@data.empty?
 
 
 			prefix = @poke ? "& POKE #{pc}," : "DATA "
 
-			tmp = @data.take 20
+			tmp = @data.take CHUNK_SIZE
 
 			code.push prefix + tmp.join(',')
 
 			pc += tmp.length
 
-			@data = @data.drop 20
+			@data = @data.drop CHUNK_SIZE
 
 		end
 
