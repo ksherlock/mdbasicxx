@@ -1,4 +1,7 @@
 
+	gosub init
+	gosub init2
+	end
 
 init:
 	for i = start to end-1
@@ -9,14 +12,14 @@ init:
 
 #asm
 	.machine 65c02
-	.org 300
+	.org $300
 	.export start, end
 start
 	lda #0
 	sta $d00d
 	rts
 end
-#end
+#endasm
 
 init2:
 #asm
@@ -24,8 +27,80 @@ init2:
 	.org 300
 	.poke
 
-	lda #0
-	sta $d00d
+foo
+	bcc foo
+	bcs bar
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+bar
 	rts
-#end
+
+#endasm
 	return
