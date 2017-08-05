@@ -1,6 +1,10 @@
 
 require_relative 'Instructions'
 
+class Literal < String
+end
+
+
 class MiniAssembler
 
 	# applesoft has a limit of 236 chars / line. 236/4 = 59.
@@ -182,7 +186,12 @@ class MiniAssembler
 		size = size + 1 if @machine == M65816 && instr[:m] && @m
 		size = size + 1 if @machine == M65816 && instr[:x] && @x
 
-		if Symbol === value
+		case value
+		when Literal
+			raise "Literal values not allowed" unless @poke
+			raise "Literal values must be 1 byte" unless size == 1
+			@data.push value.to_s
+		when Symbol
 			@patches.push( { :pc => @pc, :size => size, :value => value, :mode => mode } )
 			size.times { @data.push 0 }
 		else
@@ -355,13 +364,17 @@ class MiniAssembler
 				x = $'
 
 
-			# string numeric
+			# string numeric - cmp #'.'
 			when /^'([^']{1,2})'/
 				tmp = 0
 				$1.each_byte {|c| tmp <<= 8; tmp |= c }
 				rv.push(tmp)
 				x = $' 
 
+			# poke literal - lda #{i} / lda #{peek(0)}
+			when /^{([^{}]+)}/
+				rv.push Literal.new($1)
+				x = $'
 
 			else
 				raise "bad operand #{x}"
@@ -380,13 +393,12 @@ class MiniAssembler
 	end
 
 	def self.parse_expr(tt)
-		t = tt.last
-		return tt.pop if Symbol === t
-		return tt.pop if Integer === t
-
-		# todo -- support expressions.
-		raise "expression error"
-
+		case tt.last
+		when Symbol, Integer, Literal ; return tt.pop
+		else
+			# todo -- support expressions.
+			raise "expression error"
+		end
 	end
 
 	def self.expect_block_operand(operand)
