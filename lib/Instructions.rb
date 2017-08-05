@@ -114,10 +114,15 @@ INSTRUCTIONS = {
 		 [0x0204dc, :absolute_indirect_long]],
 	:jmp => [[0x02074c, :absolute],
 		 [0x02076c, :absolute_indirect],
-		 [0x02067c, :absolute_indirect_x]],
+		 [0x02067c, :absolute_indirect_x],
+		 # jml
+		 [0x03045c, :absolute_long],
+		 [0x0204dc, :absolute_indirect_long]],
 	:jsl => [[0x030422, :absolute_long]],
 	:jsr => [[0x020720, :absolute],
-		 [0x0204fc, :absolute_indirect_x]],
+		 [0x0204fc, :absolute_indirect_x],
+		 #jsl
+		 [0x030422, :absolute_long]],
 	:lda => [[0x0107a1, :zp_indirect_x],
 		 [0x0104a3, :sr],
 		 [0x0107a5, :zp],
@@ -333,9 +338,13 @@ INSTRUCTIONS = {
 		modes = case mode
 		when :zp ; [:absolute, :absolute_long]
 		when :absolute ; [:zp, :absolute_long]
+		when :absolute_long ; [:zp, :absolute]
+
 		when :zp_x ; [:absolute_x, :absolute_long_x]
-		when :absolute_x ; [zp_x, :absolute_long_x]
-		when :zp_y ; [absolute_y]
+		when :absolute_x ; [:zp_x, :absolute_long_x]
+		when :absolute_long_x ; [:zp_x, :absolute_x]
+
+		when :zp_y ; [:absolute_y]
 		when :absolute_y ; [:zp_y]
 		when :zp_indirect ; [:absolute_indirect]
 		when :absolute_indirect ; [:zp_indirect]
