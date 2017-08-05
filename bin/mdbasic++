@@ -122,9 +122,7 @@ op = OptionParser.new do |opts|
 		options[:E] = true
 	end
 
-	opts.on("-S", "Decompile generated code") do
-		options[:S] = true
-	end
+
 
 	opts.on("-I directory", "Specify include path") do |x|
 		options[:I].push x
@@ -140,6 +138,10 @@ op = OptionParser.new do |opts|
 		else
 			header.push "#pragma optimize #{x},2"
 		end
+	end
+
+	opts.on("-S", "Decompile generated code") do
+		options[:S] = true
 	end
 
 	opts.on("-v", "--verbose", "Be verbose") do
