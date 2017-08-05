@@ -77,14 +77,14 @@ class MiniAssembler
 		when LONG
 			raise "invalid opcode" unless @machine = M65816
 			value = self.class.expect_mx(operand)
-			@m ||= value.includes? ?m
-			@x ||= value.includes? ?x
+			@m = true if value.include? ?m
+			@x = true if value.include? ?x
 
 		when SHORT
 			raise "invalid opcode" unless @machine = M65816
 			value = self.class.expect_mx(operand)
-			@m = false if value.includes? ?m
-			@x = false if value.includes? ?x
+			@m = false if value.include? ?m
+			@x = false if value.include? ?x
 
 		when POKE
 			self.class.expect_nil(operand)
@@ -152,15 +152,22 @@ class MiniAssembler
 		end
 
 		# implicit absolute < 256 -> zp
-		if Integer === value && value < 256 && !operand[:explicit]
-
-			mode = case mode
-			when :absolute ; :zp
-			when :absolute_x ; :zp_x
-			when :absolute_y ; :zp_y
-			else ; mode
+		if Integer === value && !operand[:explicit]
+			if value <= 0xff
+				mode = case mode
+				when :absolute ; :zp
+				when :absolute_x ; :zp_x
+				when :absolute_y ; :zp_y
+				else ; mode
+				end
 			end
-
+			if value > 0xffff
+				mode = case mode
+				when :absolute ; :absolute_long
+				when :absolute_x ; :absolute_long_x
+				else ; mode
+				end
+			end
 		end
 
 
@@ -282,6 +289,7 @@ class MiniAssembler
 		when /^%([01]+)$/ ; return $1.to_i(2)
 		when /^[0-9]+$/ ; return operand.to_i(10)
 
+
 		when /^[A-Za-z_][A-Za-z0-9_]*$/
 			if st
 				key = operand.downcase.intern
@@ -345,6 +353,16 @@ class MiniAssembler
 			when /^([A-Za-z_][A-Za-z0-9_]*)/
 				rv.push($1.downcase.intern)
 				x = $'
+
+
+			# string numeric
+			when /^'([^']{1,2})'/
+				tmp = 0
+				$1.each_byte {|c| tmp <<= 8; tmp |= c }
+				rv.push(tmp)
+				x = $' 
+
+
 			else
 				raise "bad operand #{x}"
 			end
