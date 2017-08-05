@@ -1,11 +1,10 @@
 lib = File.expand_path('../lib/', __FILE__)  
 $:.unshift lib unless $:.include? lib
 
-require "version"
 
 Gem::Specification.new do |s|  
 	s.name         = 'mdbasic++'
-	s.version      = VERSION
+	s.version      = "0.0.1"
 	s.platform     = Gem::Platform::RUBY
 
 	s.description  = "MD-BASIC++"
