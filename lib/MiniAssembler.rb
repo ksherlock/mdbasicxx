@@ -563,13 +563,21 @@ class MiniAssembler
 			offset = pc - @org
 			if mode == :relative
 
-			else
-				size.times {
-					@data[offset] = xvalue & 0xff
-					xvalue = xvalue >> 8
-					offset = offset + 1
-				}
+				# fudge value...
+				xvalue = xvalue - (pc + size)
+				if size == 1
+					if xvalue < -128 || xvalue > 127
+						raise "relative branch out of range"
+					end
+				end
+				xvalue = xvalue & 0xffff
 			end
+
+			size.times {
+				@data[offset] = xvalue & 0xff
+				xvalue = xvalue >> 8
+				offset = offset + 1
+			}
 		}
 
 		pc = @org

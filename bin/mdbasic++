@@ -27,10 +27,10 @@ def replace_ext(path, ext = nil)
 	ext = ext ? "." + ext : ""
 
 	d = File.dirname(path)
-	b = File.basename(path, ".*")
+	b = File.basename(path, ".*") + ext
 
-	return b + ext if d == '.'
-	return d + File::SEPARATOR + b + ext
+	return b if d == '.'
+	return d + File::SEPARATOR + b
 
 end
 
@@ -45,20 +45,6 @@ def build_kludge(io, header, body)
 	io.flush
 end
 
-
-
-
-def outfile(explicit, infile, ext)
-	return [explicit, File.open(explicit, "w")] if explicit
-	return [nil, $stdout] if infile.nil?
-
-	if infile =~ /^(.*)(\.[^\/])$/
-		infile = "#{$1}.#{ext}"
-	else
-		infile = "#{infile}.#{ext}"
-	end
-	return [infile, File.open(infile, "w")]
-end
 
 def process(file, io, header, body)
 
