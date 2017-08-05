@@ -140,7 +140,7 @@ op = OptionParser.new do |opts|
 		end
 	end
 
-	opts.on("-S", "Decompile generated code") do
+	opts.on("-S", "Detokenize generated code") do
 		options[:S] = true
 	end
 
