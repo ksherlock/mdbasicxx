@@ -1,5 +1,6 @@
 
 require_relative 'Instructions'
+require_relative 'Expression'
 
 class Literal < String
 end
@@ -33,6 +34,17 @@ class MiniAssembler
 	COMMA = :','
 	STAR = :'*'
 	POUND = :'#'
+
+	UNARY = [:'+', :'-', :'~', :'^']
+	BINARY = [:'+', :'-', :'*', :'/', :'%', :'&', :'|', :'^', :'<<', :'>>']
+
+	PREC = { :'|' => 10,
+		:'^' => 9,
+		:'&' => 8,
+		:'<<' => 5, :'>>' => 5,
+		:'+' => 4, :'-' => 4,
+		:'*' => 3, :'/' => 3, :'%' => 3,
+	}
 
 
 	def initialize(args = nil)
@@ -149,10 +161,10 @@ class MiniAssembler
 
 		# todo -- if mode == :block, value is array of 2 elements.
 
-		if Symbol === value
-			if @symbols.has_key? value
-				value = @symbols[value]
-			end
+		value = case value
+		when Symbol ; @symbols[value] || value
+		when Expression ; value.reduce(@symbols) || value
+		else ; value
 		end
 
 		# implicit absolute < 256 -> zp
@@ -191,9 +203,14 @@ class MiniAssembler
 			raise "Literal values not allowed" unless @poke
 			raise "Literal values must be 1 byte" unless size == 1
 			@data.push value.to_s
-		when Symbol
+
+		when Symbol, Expression
 			@patches.push( { :pc => @pc, :size => size, :value => value, :mode => mode } )
 			size.times { @data.push 0 }
+		when Array
+			# block mode....
+
+
 		else
 
 			if mode == :relative
@@ -347,7 +364,10 @@ class MiniAssembler
 		rv = []
 		while !x.empty?
 			case x
-			when /^([#,()<>|\[\]])/
+			when /^(<<|>>)/
+				rv.push $1.intern
+				x = $'
+			when /^([-+#~*,&()<>|\[\]])/
 				rv.push $1.intern
 				x = $'
 			when /^0x([A-Fa-f0-9]+)/
@@ -392,13 +412,65 @@ class MiniAssembler
 		return nil
 	end
 
-	def self.parse_expr(tt)
+	def self.parse_unary(tt)
+
 		case tt.last
-		when Symbol, Integer, Literal ; return tt.pop
+		when Integer ; return tt.pop
+		when nil, COMMA, RPAREN, RBRACKET ; return nil
+		when :'+', :'-', :'^', :'~'
+			op = tt.pop
+			e = parse_unary(tt)
+			raise "Expression error" unless e
+			return UnaryExpression.new(op, e)
+		when Symbol ; return tt.pop
 		else
-			# todo -- support expressions.
-			raise "expression error"
+			raise "Expression error"
 		end
+	end
+
+	def self.parse_expr(tt)
+		# literals are a full expression.
+		return tt.pop if Literal === tt.last
+
+		first = parse_unary(tt)
+		case tt.last
+		when nil, COMMA, RPAREN, RBRACKET ; return first
+		end
+
+		ops = []
+		q = []
+
+		q.push first
+
+		loop do
+
+			case tt.last
+			when nil, COMMA, RPAREN, RBRACKET
+				while !ops.empty?
+					a = q.pop
+					b = q.pop
+					q.push BinaryExpression.new(ops.pop[0], b, a)
+				end
+				return q.first
+			end
+
+			op = tt.pop
+			prec = PREC[op] or raise "Expression error"
+
+			while !ops.empty? && ops.last[1] <= prec
+				a = q.pop
+				b = q.pop
+
+				q.push BinaryExpression.new(ops.pop[0], b, a)
+			end
+
+			ops.push [op, prec]
+
+			x = parse_unary(tt)
+			raise "Expression error" unless x
+			q.push x
+		end
+
 	end
 
 	def self.expect_block_operand(operand)
@@ -569,7 +641,12 @@ class MiniAssembler
 			value = p[:value]
 			mode = p[:mode]
 
-			xvalue = @symbols[value] or raise "Undefined symbol #{value}"
+			xvalue = case value
+			when Symbol ; @symbols[value]
+			when Expression ; value.reduce(@symbols)
+			end
+
+			raise "Undefined symbol #{value}" unless Integer === xvalue 
 
 
 			offset = pc - @org
