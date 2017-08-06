@@ -453,18 +453,27 @@ class MiniAssembler
 
 	def self.parse_unary(tt)
 
+
+		ops = []
 		case tt.last
-		when Integer ; return tt.pop
 		when nil, COMMA, RPAREN, RBRACKET ; return nil
-		when :'+', :'-', :'^', :'~'
-			op = tt.pop
-			e = parse_unary(tt)
-			raise "Expression error" unless e
-			return UnaryExpression.new(op, e)
+		when Integer; return tt.pop
+		when *UNARY
+			while UNARY.include? tt.last
+				ops.push tt.pop
+			end
 		when Symbol ; return tt.pop
-		else
-			raise "Expression error"
+		else ; raise "Expression error"
+
 		end
+
+		e = case tt.last
+		when Integer, Symbol ; tt.pop
+		else ; raise "Expression error"
+		end
+
+		return ops.reverse.reduce(e) {|rv, op| UnaryExpression.new(op, rv)}
+
 	end
 
 	def self.parse_expr(tt)
