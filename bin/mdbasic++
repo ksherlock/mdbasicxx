@@ -74,7 +74,7 @@ def process(file, io, header, body)
 				rescue => e
 					$stderr.puts line
 					$stderr.puts e
-					#$stderr.puts e.backtrace
+					$stderr.puts e.backtrace.first
 					errors = errors + 1
 				end
 			end
@@ -88,6 +88,10 @@ def process(file, io, header, body)
 			body.push line
 		end
 	}
+	if m
+		errors = errors+1
+		$stderr.puts "unterminated #asm block"
+	end
 	return errors
 
 end
