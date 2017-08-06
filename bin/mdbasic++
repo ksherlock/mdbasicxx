@@ -72,6 +72,7 @@ def process(file, io, header, body)
 				begin
 					m.process(line)
 				rescue => e
+					puts line
 					puts e
 					errors = errors + 1
 				end
