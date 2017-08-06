@@ -72,8 +72,9 @@ def process(file, io, header, body)
 				begin
 					m.process(line)
 				rescue => e
-					puts line
-					puts e
+					$stderr.puts line
+					$stderr.puts e
+					#$stderr.puts e.backtrace
 					errors = errors + 1
 				end
 			end
