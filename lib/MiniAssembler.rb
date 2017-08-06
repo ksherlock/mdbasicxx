@@ -22,6 +22,10 @@ class MiniAssembler
 	SHORT = :'.short'
 	POKE = :'.poke'
 	EXPORT = :'.export'
+	DB = :'.db'
+	DW = :'.dw'
+	DA = :'.da'
+	DL = :'.dl'
 
 	COLON = :':'
 	GT = :'>'
@@ -65,6 +69,19 @@ class MiniAssembler
 	end
 
 
+
+	def add_label(label, value)
+
+		return unless label && value
+		if @symbols.has_key? label && @symbols[label] != value
+			raise "Attempt to redefine symbol #{label}"
+		end
+
+		@symbols[label] = value
+
+	end
+
+
 	def process(line)
 		line.chomp!
 
@@ -72,16 +89,12 @@ class MiniAssembler
 		return unless data
 		label, opcode, operand = data
 
+
 		case opcode
 
 		when nil
 			# insert a label w/ the current pc.
-			value = @pc
-			if @symbols.has_key? label && @symbols[label] != value
-				raise "Attempt to redefine symbol #{label}"
-			end
-
-			@symbols[label] = value				
+			add_label(label, @pc)
 
 		when ORG
 			raise "org already set" if @pc != @org
@@ -107,15 +120,8 @@ class MiniAssembler
 			@poke = true
 
 		when EQU
-			unless label.nil?
-				value = self.class.expect_number(operand, @symbols)
-
-				if @symbols.has_key? label && @symbols[label] != value
-					raise "Attempt to redefine symbol #{label}"
-				end
-
-				@symbols[label] = value
-			end
+			value = self.class.expect_number(operand, @symbols)
+			add_label(label, value)
 
 			# .export symbol [, ...]
 		when EXPORT
@@ -123,35 +129,77 @@ class MiniAssembler
 				@exports[x] = true
 			}
 
-		when :mvp, :mvn
-			if label
-				value = @pc
-				if @symbols.has_key? label && @symbols[label] != value
-					raise "Attempt to redefine symbol #{label}"
-				end
+		when DB, DW, DA, DL
+			add_label(label, @pc) if label
 
-				@symbols[label] = value
+			values = self.class.expect_expr_list(operand)
+
+			size = case opcode
+			when DB ; 1
+			when DW ; 2
+			when DA ; 3
+			when DL ; 4
 			end
+
+			values.each {|v| 
+				push_operand( reduce_operand(v), size, :immediate)
+				@pc += size
+			}
+
+
+		when :mvp, :mvn
+			add_label(label, @pc) if label
 			do_instruction(opcode, self.class.expect_block_operand(operand))
 
 
 		else
-
-			if label
-				value = @pc
-				if @symbols.has_key? label && @symbols[label] != value
-					raise "Attempt to redefine symbol #{label}"
-				end
-
-				@symbols[label] = value
-			end
-
+			add_label(label, @pc) if label
 			do_instruction(opcode, self.class.expect_operand(operand))
 
 
 		end
 
 		return true
+	end
+
+	def reduce_operand(value)
+		case value
+		when Expression ; value.reduce(@symbols)
+		when Symbol ; @symbols[value] || value
+		when Array
+			value.map {|x| reduce_operand(x)}
+		else value
+		end
+	end
+
+	def push_operand(value, size, mode)
+		case value
+		when Symbol, Expression
+			@patches.push( { :pc => @pc, :size => size, :value => value, :mode => mode } )
+			size.times { @data.push 0 }
+		when Literal
+			raise "Literal values not allowed" unless @poke
+			raise "Literal values must be 1 byte" unless size == 1
+			@data.push value.to_s
+
+		when Integer
+
+			if mode == :relative
+				# fudge value...
+				value = value - (@pc + size)
+				if size == 1
+					if value < -128 || value > 127
+						raise "relative branch out of range (#{value})"
+					end
+				end
+				value = value & 0xffff
+			end
+
+			size.times {
+				@data.push value & 0xff
+				value >>= 8
+			}
+		end
 	end
 
 	def do_instruction(opcode, operand)
@@ -161,11 +209,7 @@ class MiniAssembler
 
 		# todo -- if mode == :block, value is array of 2 elements.
 
-		value = case value
-		when Symbol ; @symbols[value] || value
-		when Expression ; value.reduce(@symbols) || value
-		else ; value
-		end
+		value = reduce_operand(value)
 
 		# implicit absolute < 256 -> zp
 		if Integer === value && !operand[:explicit]
@@ -198,40 +242,13 @@ class MiniAssembler
 		size = size + 1 if @machine == M65816 && instr[:m] && @m
 		size = size + 1 if @machine == M65816 && instr[:x] && @x
 
-		case value
-		when Literal
-			raise "Literal values not allowed" unless @poke
-			raise "Literal values must be 1 byte" unless size == 1
-			@data.push value.to_s
-
-		when Symbol, Expression
-			@patches.push( { :pc => @pc, :size => size, :value => value, :mode => mode } )
-			size.times { @data.push 0 }
-		when Array
-			# block mode....
-
-
+		if mode == :block
+			push_operand(value[1], 1, immediate)
+			push_operand(value[0], 1, immediate)
 		else
-
-			if mode == :relative
-				# fudge value...
-				value = value - (@pc + size)
-				if size == 1
-					if value < -128 || value > 127
-						@data.pop
-						@pc = @pc - 1
-						raise "relative branch out of range"
-					end
-				end
-				value = value & 0xffff
-			end
-
-			size.times { 
-				@data.push value & 0xff
-				value = value >> 8
-			}
-
+			push_operand(value, size, mode)
 		end
+
 		@pc = @pc + size
 
 	end
@@ -359,6 +376,28 @@ class MiniAssembler
 		#return a.map { |x| x.downcase.intern }
 	end
 
+	def self.expect_expr(operand)
+		tt = tokenize(operand).reverse
+		e = parse_expr(tt)
+		raise "Syntax error" unless tt.empty?
+		return e
+	end
+
+	def self.expect_expr_list(operand)
+		rv = []
+		tt = tokenize(operand).reverse
+
+		rv.push parse_expr(tt)
+
+		while !tt.empty?
+			raise "Syntax error" unless tt.last == COMMA
+			tt.pop
+			rv.push parse_expr(tt)
+		end
+		return rv
+	end
+
+
 	def self.tokenize(x)
 
 		rv = []
@@ -433,6 +472,7 @@ class MiniAssembler
 		return tt.pop if Literal === tt.last
 
 		first = parse_unary(tt)
+		raise "Expression expected" unless first
 		case tt.last
 		when nil, COMMA, RPAREN, RBRACKET ; return first
 		end
@@ -641,10 +681,8 @@ class MiniAssembler
 			value = p[:value]
 			mode = p[:mode]
 
-			xvalue = case value
-			when Symbol ; @symbols[value]
-			when Expression ; value.reduce(@symbols)
-			end
+
+			xvalue = reduce_operand(value)
 
 			raise "Undefined symbol #{value}" unless Integer === xvalue 
 
