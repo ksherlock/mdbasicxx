@@ -89,6 +89,7 @@ class MiniAssembler
 		return unless data
 		label, opcode, operand = data
 
+		@symbols[:'*'] = @pc
 
 		case opcode
 
@@ -160,6 +161,7 @@ class MiniAssembler
 		end
 
 		return true
+
 	end
 
 	def reduce_operand(value)
@@ -243,8 +245,8 @@ class MiniAssembler
 		size = size + 1 if @machine == M65816 && instr[:x] && @x
 
 		if mode == :block
-			push_operand(value[1], 1, immediate)
-			push_operand(value[0], 1, immediate)
+			push_operand(value[1], 1, :immediate)
+			push_operand(value[0], 1, :immediate)
 		else
 			push_operand(value, size, mode)
 		end
@@ -684,6 +686,7 @@ class MiniAssembler
 
 		# resolve symbols, etc.
 
+		@symbols.delete :'*'
 		@patches.each {|p|
 			pc = p[:pc]
 			size = p[:size]
