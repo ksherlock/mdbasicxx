@@ -55,19 +55,29 @@ def process(file, io, header, body)
 
 		if m
 			if line =~ /^#\s*endasm\s*$/
-				data = []
-				st = {}
-				m.finish(data, st)
-				m = nil
 
-				data.each {|x|
-					body.push "\t#{x}"
-				}
+				begin
 
-				st.each {| k, v |
-					k = k.to_s.upcase 
-					header.push "#define #{k} #{v}"
-				}
+					data = []
+					st = {}
+					m.finish(data, st)
+					data.each {|x|
+						body.push "\t#{x}"
+					}
+
+					st.each {| k, v |
+						k = k.to_s.upcase 
+						header.push "#define #{k} #{v}"
+					}
+				rescue => e
+					$stderr.puts line
+					$stderr.puts e
+					$stderr.puts e.backtrace.first
+					errors = errors + 1
+				ensure
+					m = nil
+				end
+
 			else
 				begin
 					m.process(line)
