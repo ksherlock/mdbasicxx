@@ -27,6 +27,12 @@ class MiniAssembler
 	DA = :'.da'
 	DL = :'.dl'
 
+	DCI = :'.dci'
+	MSB = :'.msb'
+
+	STR = :'.str'
+	PSTR = :'.pstr'
+
 	COLON = :':'
 	GT = :'>'
 	LT = :'<'
@@ -66,6 +72,8 @@ class MiniAssembler
 		@exports = {}
 		@patches = []
 		@poke = false
+		@dci = false
+		@msb = false
 	end
 
 
@@ -142,10 +150,49 @@ class MiniAssembler
 			when DL ; 4
 			end
 
-			values.each {|v| 
+			values.each {|v|
 				push_operand( reduce_operand(v), size, :immediate)
 				@pc += size
 			}
+
+		when DCI
+			@dci = self.class.expect_on_off(operand)
+		when MSB
+			@msb = self.class.expect_on_off(operand)
+
+		when STR, PSTR
+			add_label(label, @pc) if label
+
+			_begin = @pc
+			if opcode == PSTR
+				@data.push(0)
+				@pc += 1
+			end
+
+			values = self.class.expect_string_list(operand)
+
+			values.each {|x|
+
+				case x
+				when String
+					bytes = x.bytes
+					bytes.map! {|c| (c | 0x80) & 0xff } if @msb
+					bytes[-1] ^= 0x80 if @dci && !bytes.empty?
+
+					@data.push(*bytes)
+					@pc += bytes.length
+				else
+					push_operand(reduce_operand(x), 1, :immediate)
+					@pc += 1
+				end
+			}
+
+			_end = @pc
+			if opcode === PSTR
+				length = _end - _begin - 1
+				raise "Pascal string too long" if length > 255
+				@data[_begin] = length
+			end
 
 
 		when :mvp, :mvn
@@ -278,7 +325,7 @@ class MiniAssembler
 		if line =~ re
 			line = $1.rstrip
 			x = $2
-			raise "unterminated string" unless x.empty? || x[0] == ?; 
+			raise "unterminated string" unless x.empty? || x[0] == ?;
 		else
 			raise "lexical error"
 		end
@@ -399,6 +446,35 @@ class MiniAssembler
 		return rv
 	end
 
+	def self.expect_string_list(operand)
+		rv = []
+		tt = tokenize(operand).reverse
+
+
+		loop do
+			case tt.last
+			when String ; rv.push tt.pop
+			else rv.push parse_expr(tt)
+			end
+
+			break if tt.empty?
+			raise "Syntax error" unless tt.last == COMMA
+			tt.pop
+		end
+
+		return rv
+	end
+
+
+
+	def self.expect_on_off(operand)
+		return case operand
+		when /^on$/i ; true
+		when /^off$/i ; false
+		else ; raise "bad operand #{operand}"
+		end
+	end
+
 
 	def self.tokenize(x)
 
@@ -430,7 +506,12 @@ class MiniAssembler
 				tmp = 0
 				$1.each_byte {|c| tmp <<= 8; tmp |= c }
 				rv.push(tmp)
-				x = $' 
+				x = $'
+
+			#string
+			when /^"([^"]+)"/
+				rv.push($1)
+				x = $'
 
 			# poke literal - lda #{i} / lda #{peek(0)}
 			when /^{([^{}]+)}/
@@ -696,7 +777,7 @@ class MiniAssembler
 
 			xvalue = reduce_operand(value)
 
-			raise "Undefined symbol #{value}" unless Integer === xvalue 
+			raise "Undefined symbol #{value}" unless Integer === xvalue
 
 
 			offset = pc - @org
