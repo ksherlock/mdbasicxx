@@ -7,7 +7,7 @@ A pre-processor for MD-BASIC.
 
 ### Mini Assembler
 
-Generates appropriate `DATA` or `& POKE` (amperworks) statements.
+Generates appropriate `DATA` or `& POKE` (AmperWorks) statements.
 
 
 #### Example
@@ -54,7 +54,61 @@ output:
             .short      [mx]                        ; '816 - assume short m or x
             .poke                                   ; use & POKE
     label   .equ        number
-            .export     label [, label...]          ; export label (as #define)
+            .export     label [, label ...]         ; export label (as #define)
+
+
+##### Data Directives
+
+            .db         expr [, expr ...]           ; 8-bit data
+            .dw         expr [, expr ...]           ; 16-bit data
+            .da         expr [, expr ...]           ; 24-bit data
+            .dl         expr [, expr ...]           ; 32-bit data
+
+            .dci        [on | off]                  ; string dextral character inverted
+            .msb        [on | off]                  ; strings most significant bit
+
+            .str        string [, string ...]       ; string data
+            .pstr       string [, string ...]       ; pascal string data
+
+_n.b._: `.str` and `.pstr` accept a list of string ("like this") or expressions (which will save as bytes).
+The the `.msb` and `.dci` settings only apply to double-quoted strings.
+
+
+#### Address Modes
+
+`<`, `|`, and `>` are address mode selectors, not unary operators.  If no address mode is explicitly
+specified, the Mini Assembler will default to absolute address mode.  If the operand size can be
+determined (i.e., an integer constant or symbol value is known), it will default to zp, absolute, or
+absolute long based on the operand size.
+
+
+#### Expressions
+##### Terminals
+
+            {basic-expression}                      ; inserted as-is. only valid with .poke
+            symbol                                  ; symbol
+            %10                                     ; binary integer
+            10                                      ; decimal integer
+            $10                                     ; hexadecimal integer
+            0x10                                    ; hexadecimal integer
+            '10'                                    ; character constant
+
+##### Unary Operators
+
+            + - ^ ~
+
+_n.b._: Unary ^ is right shift 16.
+
+##### Binary Operators
+
+            + - * / % & | ^ >> <<
+
+_n.b._: Binary operations use same precedence as `C`. Parenthesis are not supported within expressions.
+
+
+
+
+
 
 
 ### More command-line flags
@@ -72,5 +126,5 @@ output:
         --[no-]summary               Print summary
         --[no-]xref                  Print Cross References
     -h, --help                       Display help information
-    
+
 
