@@ -106,8 +106,11 @@ class MiniAssembler
 			add_label(label, @pc)
 
 		when ORG
-			raise "org already set" if @pc != @org
-			@org = @pc = self.class.expect_number(operand)
+			raise "org already set" unless @pc == @org
+			value = self.class.expect_expr(operand)
+			value = reduce_operand(value)
+			raise "Expression indeterminate" unless Integer === value
+			@org = @pc = value
 
 		when MACHINE
 			@machine = self.class.expect_machine(operand)
@@ -129,7 +132,11 @@ class MiniAssembler
 			@poke = true
 
 		when EQU
-			value = self.class.expect_number(operand, @symbols)
+
+			value = self.class.expect_expr(operand)
+			value = reduce_operand(value)
+			raise "Expression indeterminate" unless Integer === value
+
 			add_label(label, value)
 
 			# .export symbol [, ...]
@@ -818,7 +825,11 @@ class MiniAssembler
 
 		@exports.each {|key, _value|
 
-			st[key] = @symbols[key] if @symbols.has_key? key
+			if @symbols.has_key? key
+				st[key] = @symbols[key]
+			else
+				warn "Unable to export #{key}"
+			end
 		}
 
 		reset
