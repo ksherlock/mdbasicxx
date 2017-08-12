@@ -96,8 +96,8 @@ output (after MD-BASIC):
             .str        string [, string ...]       ; string data
             .pstr       string [, string ...]       ; pascal string data
 
-_n.b._: `.str` and `.pstr` accept a list of string ("like this") or expressions (which will save as bytes).
-The the `.msb` and `.dci` settings only apply to double-quoted strings.
+_n.b._: `.str` and `.pstr` accept a list of strings ("like this") or expressions (which will save as bytes).
+The `.msb` and `.dci` settings only apply to double-quoted strings.
 
 
 #### Address Modes
