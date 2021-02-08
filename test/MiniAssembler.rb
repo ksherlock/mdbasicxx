@@ -1,4 +1,4 @@
-require_relative '../MiniAssembler'
+require_relative '../lib/MiniAssembler'
 require 'test/unit'
 
 class TestAssembler < Test::Unit::TestCase
@@ -116,5 +116,21 @@ class TestAssembler < Test::Unit::TestCase
 		assert_equal(st, {:start => 300 })
 		assert_equal(data, ["DATA 169,0,0,96"])
 	end
+
+	def test_unary
+		m = MiniAssembler::new
+		m.process(" lda #+5")
+		m.process(" lda #-5")
+		m.process(" lda #~5")
+		m.process(" lda #^5")
+
+		data = []
+		st = {}
+		m.finish(data, st)
+
+		assert_equal(data, ["DATA 169,5,169,251,169,250,169,0"])
+
+	end
+
 
 end
