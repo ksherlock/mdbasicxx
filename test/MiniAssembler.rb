@@ -132,5 +132,26 @@ class TestAssembler < Test::Unit::TestCase
 
 	end
 
+	def test_binary
+		m = MiniAssembler::new
+		m.process(" lda #3+5")
+		m.process(" lda #3-5")
+		m.process(" lda #3*5")
+		m.process(" lda #3/5")
+		m.process(" lda #3%5")
+		m.process(" lda #3&5")
+		m.process(" lda #3|5")
+		m.process(" lda #3>>1")
+		m.process(" lda #3<<1")
+
+		data = []
+		st = {}
+		m.finish(data, st)
+
+		assert_equal(data, ["DATA 169,8,169,254,169,15,169,0,169,3,169,1,169,7,169,1,169,6"])
+
+	end
+
+
 
 end

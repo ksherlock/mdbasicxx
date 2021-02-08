@@ -491,7 +491,7 @@ class MiniAssembler
 			when /^(<<|>>)/
 				rv.push $1.intern
 				x = $'
-			when /^([-+#~^*,&()<>|\[\]])/
+			when /^([-+#~^*,&()<>|\[\]\/%])/
 				rv.push $1.intern
 				x = $'
 			when /^0x([A-Fa-f0-9]+)/
