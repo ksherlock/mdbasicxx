@@ -340,7 +340,7 @@ class MiniAssembler
 		return nil if line.empty?
 
 		if line =~ /^([A-Za-z_][A-Za-z0-9_]*)/
-			label = $1.intern
+			label = $1.downcase.intern
 			line = $' # string after match
 		end
 
