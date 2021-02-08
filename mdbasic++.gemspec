@@ -3,8 +3,8 @@ $:.unshift lib unless $:.include? lib
 
 
 Gem::Specification.new do |s|  
-	s.name         = 'mdbasic++'
-	s.version      = "0.0.4"
+	s.name         = 'mdbasicxx'
+	s.version      = "0.0.5"
 	s.platform     = Gem::Platform::RUBY
 
 	s.description  = "MD-BASIC++"
