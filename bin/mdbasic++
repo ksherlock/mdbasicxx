@@ -211,20 +211,25 @@ if ARGV.length > 1
 	exit 1
 end
 
-argf_each {|infile, io|
+argf_each {|inpath, io|
 
-	errors = process(infile, io, header, body)
+	errors = process(inpath, io, header, body)
 
 	exit if errors > 0
 
 	outfile = nil
-	outfile = case options[:o]
-	when nil ; nil
-	when '-' ; $stdout
-	else File.open(options[:o], "w")
+	outpath = nil
+	case options[:o]
+	when nil ;
+	when '-' ;
+		outfile = $stdout
+		outpath = nil
+	else
+		outpath = options[:o]
+		outfile = File.open(options[:o], "w")
 	end
 
-	if (infile == nil) && (outfile == nil)
+	if (inpath == nil) && (outpath == nil)
 		options[:S] = true
 	end
 
@@ -244,28 +249,28 @@ argf_each {|infile, io|
 	end
 
 
-	bfile = nil
+	bpath = nil
 	tmpfile = nil
 
 	if options[:S]
 		tmpfile = Tempfile.new(['md', '.bas'], '/tmp')
-		bfile = tmpfile.path
+		bpath = tmpfile.path
 	else
-		bfile = outfile || replace_ext(infile, 'bas')
+		bpath = outpath || replace_ext(inpath, 'bas')
 	end
 
-	args = ['iix', 'mdbasic', efile.path, '-o', bfile]
+	args = ['iix', 'mdbasic', efile.path, '-o', bpath]
 	pid = Process.spawn(*args)
 	Process.wait(pid)
 	if $?.exitstatus > 0
-		$stderr.puts "mdbasic++: compile #{infile} failed."
+		$stderr.puts "mdbasic++: compile #{inpath} failed."
 		exit 1
 	end
 
 	if options[:S]
 		o = {}
 		o[:out] = outfile if outfile
-		args = ['iix', 'blist', bfile]
+		args = ['iix', 'blist', bpath]
 		pid = Process.spawn(*args, o)
 		Process.wait(pid)
 		# $?.exitstatus not currently correct.
