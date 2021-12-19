@@ -6,9 +6,10 @@ require 'tempfile'
 require 'time'
 
 require 'MiniAssembler'
+require 'Applesoft'
+require 'version.rb'
 
-
-VERSION = "0.0.5"
+# VERSION = "0.0.7"
 
 def argf_each 
 
@@ -160,6 +161,15 @@ op = OptionParser.new do |opts|
 		options[:S] = true
 	end
 
+	opts.on("--lowercase", "use lowercase display (-S)") do
+		options[:"S-lowercase"] = true
+	end
+
+	opts.on("--compact", "use compact display (-S)") do
+		options[:"S-compact"] = true
+	end
+
+
 	opts.on("-v", "--verbose", "Be verbose") do
 		options[:verbose] = true
 		header.push "#pragma progress 1"
@@ -250,11 +260,11 @@ argf_each {|inpath, io|
 
 
 	bpath = nil
-	tmpfile = nil
+	bfile = nil
 
 	if options[:S]
-		tmpfile = Tempfile.new(['md', '.bas'], '/tmp')
-		bpath = tmpfile.path
+		bfile = Tempfile.new(['md', '.bas'], '/tmp', :mode => File::BINARY)
+		bpath = bfile.path
 	else
 		bpath = outpath || replace_ext(inpath, 'bas')
 	end
@@ -268,15 +278,24 @@ argf_each {|inpath, io|
 	end
 
 	if options[:S]
-		o = {}
-		o[:out] = outfile if outfile
-		args = ['iix', 'blist', bpath]
-		pid = Process.spawn(*args, o)
-		Process.wait(pid)
+		# o = {}
+		# o[:out] = outfile if outfile
+		# args = ['iix', 'blist', bpath]
+		# pid = Process.spawn(*args, o)
+		# Process.wait(pid)
 		# $?.exitstatus not currently correct.
+
+		# bfile will always be set.
+		bfile.seek(0)
+		format = {}
+		format[:compact] = options[:"S-compact"]
+		format[:lowercase] = options[:"S-lowercase"]
+		list(bfile, outfile, format)
 	end
 
-
+	if bfile then
+		bfile.close()
+	end
 }
 
 exit 0
