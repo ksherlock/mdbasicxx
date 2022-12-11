@@ -57,7 +57,7 @@ TOKENS = [
 	"STOP",
 	"ON",
 	"WAIT",
-	"LIST",
+	"LOAD",
 	"SAVE",
 	"DEF",
 	"POKE",	
