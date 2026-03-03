@@ -21,6 +21,8 @@ class MiniAssembler
 	LONG = :'.long'
 	SHORT = :'.short'
 	POKE = :'.poke'
+	DATA = :'.data'
+	INLINE = :'.inline'
 	EXPORT = :'.export'
 	DB = :'.db'
 	DW = :'.dw'
@@ -48,7 +50,8 @@ class MiniAssembler
 	UNARY = [:'+', :'-', :'~', :'^']
 	BINARY = [:'+', :'-', :'*', :'/', :'%', :'&', :'|', :'^', :'<<', :'>>']
 
-	PREC = { :'|' => 10,
+	PREC = {
+		:'|' => 10,
 		:'^' => 9,
 		:'&' => 8,
 		:'<<' => 5, :'>>' => 5,
@@ -56,9 +59,12 @@ class MiniAssembler
 		:'*' => 3, :'/' => 3, :'%' => 3,
 	}
 
+	attr_reader :pc, :format, :data
 
-	def initialize(args = nil)
+	def initialize(pass: 1, pc: 0)
 		reset()
+		@pass = pass
+		@xpc = pc
 	end
 
 	def reset
@@ -71,9 +77,10 @@ class MiniAssembler
 		@symbols = {}
 		@exports = {}
 		@patches = []
-		@poke = false
 		@dci = false
 		@msb = false
+		@format = :data
+		@pass = 1
 	end
 
 
@@ -107,6 +114,8 @@ class MiniAssembler
 
 		when ORG
 			raise "org already set" unless @pc == @org
+			raise ".org not valid with .inline" if @format == :inline
+
 			value = self.class.expect_expr(operand)
 			value = reduce_operand(value)
 			raise "Expression indeterminate" unless Integer === value
@@ -129,7 +138,18 @@ class MiniAssembler
 
 		when POKE
 			self.class.expect_nil(operand)
-			@poke = true
+			@format = :poke
+
+		when DATA
+			self.class.expect_nil(operand)
+			@format = :data
+
+		when INLINE
+			self.class.expect_nil(operand)
+			@format = :inline
+			raise ".org not valid with .inline" if @org > 0
+			@org = @pc = @xpc
+
 
 		when EQU
 
@@ -234,7 +254,7 @@ class MiniAssembler
 			@patches.push( { :pc => @pc, :size => size, :value => value, :mode => mode } )
 			size.times { @data.push 0 }
 		when Literal
-			raise "Literal values not allowed" unless @poke
+			raise "Literal values not allowed" unless @format == :poke
 			raise "Literal values must be 1 byte" unless size == 1
 			@data.push value.to_s
 
@@ -775,6 +795,21 @@ class MiniAssembler
 		# resolve symbols, etc.
 
 		@symbols.delete :'*'
+
+
+		if @format == :inline and @pass == 1
+			@exports.each {|key, _value|
+
+				if @symbols.has_key? key
+					st[key] = 65535 # placeholder for pass 1.
+				else
+					warn "Unable to export #{key}"
+				end
+			}
+			true
+		end
+
+
 		@patches.each {|p|
 			pc = p[:pc]
 			size = p[:size]
@@ -807,20 +842,22 @@ class MiniAssembler
 			}
 		}
 
-		pc = @org
-		while !@data.empty?
+		if @format != :inline
+			pc = @org
+			while !@data.empty?
 
 
-			prefix = @poke ? "& POKE #{pc}," : "DATA "
+				prefix = @format == :poke ? "& POKE #{pc}," : "DATA "
 
-			tmp = @data.take CHUNK_SIZE
+				tmp = @data.take CHUNK_SIZE
 
-			code.push prefix + tmp.join(',')
+				code.push prefix + tmp.join(',')
 
-			pc += tmp.length
+				pc = pc + tmp.length
 
-			@data = @data.drop CHUNK_SIZE
+				@data = @data.drop CHUNK_SIZE
 
+			end
 		end
 
 		@exports.each {|key, _value|
@@ -832,7 +869,7 @@ class MiniAssembler
 			end
 		}
 
-		reset
+		# reset
 		true
 	end
 
