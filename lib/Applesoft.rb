@@ -132,8 +132,13 @@ def list(infile, outfile = nil, options = nil)
 	offset = 0
 	line = 0
 
+	extra = []
+	address = 0
+	pc = 0
+
 	infile.each_byte {|x|
 
+		pc += 1
 		case state
 		when 0
 			offset = x;
@@ -141,6 +146,10 @@ def list(infile, outfile = nil, options = nil)
 		when 1
 			offset |= x << 16
 			state = state + 1
+			if offset == 0
+				state = 5
+				address = 0x0801 + pc
+			end
 		when 2
 			line = x
 			state = state + 1
@@ -181,12 +190,23 @@ def list(infile, outfile = nil, options = nil)
 				x += 0x40
 			end
 			outfile.putc(x)
+
+		when 5
+			extra.push(x)
 			
 		end
 	}
 
-	if state != 2 or offset != 0 then
-		raise EOFError.new()
+	raise EOFError.new() unless state == 5
+
+	outfile.print("\n") unless extra.empty?
+	while !extra.empty?
+		tmp = extra.take 16
+		extra = extra.drop 16
+
+		outfile.print("%04x:" % address, *tmp.map{|x| " %02x" % x}, "\n")
+
+		address = address + 16
 	end
 
 
