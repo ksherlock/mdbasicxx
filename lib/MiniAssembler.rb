@@ -790,25 +790,42 @@ class MiniAssembler
 
 	end
 
+	def export_definess()
+		st = {}
+		@exports.each {|key, _value|
+
+			if @symbols.has_key? key
+				st[key] = @symbols[key]
+			else
+				warn "Unable to export #{key}"
+			end
+		}
+		return st
+	end
+
+	def export_code()
+
+		code = []
+		return code if @format == :inline or @data.empty?
+
+		pc = @org
+
+		@data.each_slice(CHUNK_SIZE) {|x|
+
+			prefix = @format == :poke ? "& POKE #{pc}," : "DATA "
+			code.push prefix + tmp.join(',')
+
+			pc += x.length
+		}
+
+		return code
+	end
+
 	def finish(code, st)
 
 		# resolve symbols, etc.
 
 		@symbols.delete :'*'
-
-
-		if @format == :inline and @pass == 1
-			@exports.each {|key, _value|
-
-				if @symbols.has_key? key
-					st[key] = 65535 # placeholder for pass 1.
-				else
-					warn "Unable to export #{key}"
-				end
-			}
-			true
-		end
-
 
 		@patches.each {|p|
 			pc = p[:pc]
@@ -841,23 +858,22 @@ class MiniAssembler
 				offset = offset + 1
 			}
 		}
+		@patches.clear
 
-		if @format != :inline
+		unless @format == :inline or @data.empty?
+
 			pc = @org
-			while !@data.empty?
 
+			@data.each_slice(CHUNK_SIZE) {|x|
 
 				prefix = @format == :poke ? "& POKE #{pc}," : "DATA "
+				code.push prefix + x.join(',')
 
-				tmp = @data.take CHUNK_SIZE
+				pc += x.length
+			}
 
-				code.push prefix + tmp.join(',')
 
-				pc = pc + tmp.length
 
-				@data = @data.drop CHUNK_SIZE
-
-			end
 		end
 
 		@exports.each {|key, _value|
