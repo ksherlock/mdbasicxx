@@ -209,7 +209,7 @@ class MiniAssembler
 		when STR, PSTR, DCI
 			add_label(label, @pc) if label
 
-			_begin = @pc
+			_begin = @data.length
 			if opcode == PSTR
 				@data.push(0)
 				@pc += 1
@@ -232,7 +232,7 @@ class MiniAssembler
 				end
 			}
 
-			_end = @pc
+			_end = @data.length
 			if opcode === PSTR
 				length = _end - _begin - 1
 				raise "Pascal string too long" if length > 255
@@ -885,8 +885,8 @@ class MiniAssembler
 		}
 		@patches.clear
 
-		@dcis.each {|pc|
-			@data[pc - @org] ^= 0x80
+		@dcis.each {|offset|
+			@data[offset] ^= 0x80
 		}
 		@dcis.clear
 
