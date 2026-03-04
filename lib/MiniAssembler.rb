@@ -95,7 +95,8 @@ class MiniAssembler
 		@symbols = {}
 		@exports = {}
 		@patches = []
-		@dci = false
+		@dcis = []
+		# @dci = false
 		# @msb = false
 		@format = :data
 		@pass = 1
@@ -200,12 +201,12 @@ class MiniAssembler
 				@pc += size
 			}
 
-		when DCI
-			@dci = self.class.expect_on_off(operand)
+		# when DCI
+			# @dci = self.class.expect_on_off(operand)
 		# when MSB
 			# @msb = self.class.expect_on_off(operand)
 
-		when STR, PSTR
+		when STR, PSTR, DCI
 			add_label(label, @pc) if label
 
 			_begin = @pc
@@ -221,7 +222,7 @@ class MiniAssembler
 				case x
 				when AsmString
 					bytes = x.to_bytes
-					bytes[-1] ^= 0x80 if @dci && !bytes.empty?
+					# bytes[-1] ^= 0x80 if @dci && !bytes.empty?
 
 					@data.push(*bytes)
 					@pc += bytes.length
@@ -236,6 +237,12 @@ class MiniAssembler
 				length = _end - _begin - 1
 				raise "Pascal string too long" if length > 255
 				@data[_begin] = length
+			end
+
+			if opcode === DCI and _begin != _end
+				# in theory it could be an expression not evaluated
+				# until later...
+				@dcis.push(_end-1)
 			end
 
 
@@ -877,6 +884,11 @@ class MiniAssembler
 			}
 		}
 		@patches.clear
+
+		@dcis.each {|pc|
+			@data[pc - @org] ^= 0x80
+		}
+		@dcis.clear
 
 		unless @format == :inline or @data.empty?
 
