@@ -180,9 +180,14 @@ class MiniAssembler
 
 			# .export symbol [, ...]
 		when EXPORT
-			self.class.expect_symbol_list(operand).each {|x|
-				@exports[x] = true
-			}
+			if label
+				add_label(label, @pc)
+				@exports[label] = true
+			else 
+				self.class.expect_symbol_list(operand).each {|x|
+					@exports[x] = true
+				}
+			end
 
 		when DB, DW, DA, DL
 			add_label(label, @pc) if label

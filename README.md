@@ -86,6 +86,7 @@ output (after MD-BASIC):
             .inline                                 ; generate a binary blob at the end of file
     label   .equ        expr
             .export     label [, label ...]         ; export label (as #define)
+    label   .export                                 ; define and export label
 
 
 ##### Data Directives
@@ -95,12 +96,13 @@ output (after MD-BASIC):
             .da         expr [, expr ...]           ; 24-bit data
             .dl         expr [, expr ...]           ; 32-bit data
 
-            .dci        [on | off]                  ; string dextral character inverted
+            .dci        string [, string ...]       ; dextral character inverted string
+            .str        string [, string ...]       ; string
+            .pstr       string [, string ...]       ; pascal string
 
-            .str        string [, string ...]       ; string data
-            .pstr       string [, string ...]       ; pascal string data
-
-_n.b._: `.str` and `.pstr` accept a list of strings ("like this") or expressions (which will save as bytes).
+_n.b._: `.str`, `.pstr`, and `.dci` accept a list of strings ("like this",'or this') or expressions (which will generate bytes).
+For `.pstr`, the length prefix is the length of all strings and expressions.  For `.dci`, only the last byte of the last string
+(or expression) is inverted.
 
 
 #### Address Modes
