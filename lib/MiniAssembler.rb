@@ -5,6 +5,24 @@ require_relative 'Expression'
 class Literal < String
 end
 
+class AsmString < String
+	attr_accessor :msb
+
+	def initialize(str = "", msb = false)
+		super(str)
+		@msb = msb
+	end
+
+	def to_int()
+		mask = @msb ? 0x80 : 0x00
+		self.bytes.slice(0,4).map{|x| x | mask}.reduce {|akku, x| (akku << 8) | x}
+	end
+
+	def to_bytes()
+		return self.bytes.map{|x| x | 0x80} if @msb
+		return self.bytes
+	end
+end
 
 class MiniAssembler
 
@@ -30,7 +48,7 @@ class MiniAssembler
 	DL = :'.dl'
 
 	DCI = :'.dci'
-	MSB = :'.msb'
+	# MSB = :'.msb'
 
 	STR = :'.str'
 	PSTR = :'.pstr'
@@ -78,7 +96,7 @@ class MiniAssembler
 		@exports = {}
 		@patches = []
 		@dci = false
-		@msb = false
+		# @msb = false
 		@format = :data
 		@pass = 1
 	end
@@ -184,8 +202,8 @@ class MiniAssembler
 
 		when DCI
 			@dci = self.class.expect_on_off(operand)
-		when MSB
-			@msb = self.class.expect_on_off(operand)
+		# when MSB
+			# @msb = self.class.expect_on_off(operand)
 
 		when STR, PSTR
 			add_label(label, @pc) if label
@@ -201,9 +219,8 @@ class MiniAssembler
 			values.each {|x|
 
 				case x
-				when String
-					bytes = x.bytes
-					bytes.map! {|c| (c | 0x80) & 0xff } if @msb
+				when AsmString
+					bytes = x.to_bytes
 					bytes[-1] ^= 0x80 if @dci && !bytes.empty?
 
 					@data.push(*bytes)
@@ -282,8 +299,6 @@ class MiniAssembler
 
 		value = operand[:value]
 		mode = operand[:mode]
-
-		# todo -- if mode == :block, value is array of 2 elements.
 
 		value = reduce_operand(value)
 
@@ -528,16 +543,14 @@ class MiniAssembler
 				x = $'
 
 
-			# string numeric - cmp #'.'
-			when /^'([^']{1,2})'/
-				tmp = 0
-				$1.each_byte {|c| tmp <<= 8; tmp |= c }
-				rv.push(tmp)
+			# low-ascii string
+			when /^'([^']+)'/
+				rv.push(AsmString.new($1, false))
 				x = $'
 
-			#string
+			# high-ascii string
 			when /^"([^"]+)"/
-				rv.push($1)
+				rv.push(AsmString.new($1, true))
 				x = $'
 
 			# poke literal - lda #{i} / lda #{peek(0)}
@@ -568,6 +581,10 @@ class MiniAssembler
 		case tt.last
 		when nil, COMMA, RPAREN, RBRACKET ; return nil
 		when Integer; return tt.pop
+
+		when AsmString
+			return tt.pop.to_int
+
 		when *UNARY
 			while UNARY.include? tt.last
 				ops.push tt.pop
@@ -585,6 +602,7 @@ class MiniAssembler
 		return ops.reverse.reduce(e) {|rv, op| UnaryExpression.new(op, rv)}
 
 	end
+
 
 	def self.parse_expr(tt)
 		# literals are a full expression.
@@ -790,7 +808,7 @@ class MiniAssembler
 
 	end
 
-	def export_definess()
+	def export_defines()
 		st = {}
 		@exports.each {|key, _value|
 
