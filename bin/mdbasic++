@@ -55,6 +55,12 @@ end
 def process(file, io, pragma, header, body)
 
 
+
+	# most of the time, a 4-digit offset should be sufficient.
+	# that said, there are ~10 proline basic files > 7951
+	# $801 + 7951 = 10,000
+	# so... would need to re-process multiple times to eliminate padding.
+
 	inline_pc = 0x8000
 	have_inline = false
 
@@ -62,16 +68,13 @@ def process(file, io, pragma, header, body)
 
 	hlen = header.length
 
-	# could run multiple times to reduce the padding to 0....
-	# realistically, all inline offsets will be 4 digits (0x0801 = 2049, 0x270f=9999)
-	# if you need large chunks of asm you should use a real assembler!
-
 	for pass in 1..2
 
+		lino = 0
 		m = nil
 		io.each_line {|line|
 			line.chomp!
-
+			lino = lino + 1
 			if m
 				if line =~ /^#\s*endasm\s*$/
 
@@ -97,9 +100,9 @@ def process(file, io, pragma, header, body)
 							header.push "#define #{k} #{v}"
 						}
 					rescue => e
-						$stderr.puts line
+						$stderr.printf("% 5d: %s\n", lino, line)
 						$stderr.puts e
-						$stderr.puts e.backtrace.first
+						#$stderr.puts e.backtrace.first
 						errors = errors + 1
 					ensure
 						m = nil
@@ -109,9 +112,9 @@ def process(file, io, pragma, header, body)
 					begin
 						m.process(line)
 					rescue => e
-						$stderr.puts line
+						$stderr.printf("% 5d: %s\n", lino, line)
 						$stderr.puts e
-						$stderr.puts e.backtrace.first
+						#$stderr.puts e.backtrace.first
 						errors = errors + 1
 					end
 				end
@@ -371,7 +374,7 @@ argf_each {|inpath, io|
 		@basic_extra.flatten!
 		File.open(bpath, "ab") {|f|
 			# (0..padding).each {|x| f.putc(0x00) }
-			f.write("\x00" * padding)
+			f.write("\xea" * padding)
 			@basic_extra.each {|x| f.putc(x) }
 		}
 
