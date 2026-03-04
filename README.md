@@ -8,6 +8,9 @@ A pre-processor for MD-BASIC.
 ### Mini Assembler
 
 Generates appropriate `DATA` or `& POKE` (AmperWorks) statements.
+It can also generate a binary payload appended to the end of the file
+(`.inline`).  In inline mode, `.org` is not allowed (or necessary); the
+org will be calculated based on the file size.
 
 
 #### Example
@@ -78,7 +81,9 @@ output (after MD-BASIC):
             .org        expr                        ; set origin
             .long       [mx]                        ; '816 - assume long m or x
             .short      [mx]                        ; '816 - assume short m or x
+            .data                                   ; use DATA (default)
             .poke                                   ; use & POKE
+            .inline                                 ; generate a binary blob at the end of file
     label   .equ        expr
             .export     label [, label ...]         ; export label (as #define)
 
@@ -91,13 +96,11 @@ output (after MD-BASIC):
             .dl         expr [, expr ...]           ; 32-bit data
 
             .dci        [on | off]                  ; string dextral character inverted
-            .msb        [on | off]                  ; string most significant bit
 
             .str        string [, string ...]       ; string data
             .pstr       string [, string ...]       ; pascal string data
 
 _n.b._: `.str` and `.pstr` accept a list of strings ("like this") or expressions (which will save as bytes).
-The `.msb` and `.dci` settings only apply to double-quoted strings.
 
 
 #### Address Modes
@@ -117,7 +120,8 @@ absolute long based on the operand size.
             10                                      ; decimal integer
             $10                                     ; hexadecimal integer
             0x10                                    ; hexadecimal integer
-            '10'                                    ; character constant
+            '10'                                    ; low-ascii string (or character constant)
+            "10"                                    ; high-ascii string (or character constant)
 
 ##### Unary Operators
 
